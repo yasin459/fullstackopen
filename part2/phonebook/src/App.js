@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FilterControll } from "./FilterComponent";
 import { FormControll } from "./FormControll";
 import { PersonList } from "./PersonList";
-import axios from "axios";
+import { getAll, create, update, deletePhone } from "./webService";
 
 const App = () => {
   const [persons, setPersons] = useState([
@@ -26,23 +26,42 @@ const App = () => {
   };
   useEffect(() => {
     console.log("effect");
-    axios.get("http://localhost:3001/persons").then((response) => {
-      console.log("promise fulfilled");
-      setPersons(response.data);
-      setFilteredPersons(response.data);
-    });
+    getAll()
+      .then((personsRes) => {
+        console.log("response getall: ", personsRes);
+        setPersons(personsRes);
+        setFilteredPersons(personsRes);
+      })
+      .catch((e) => {
+        alert(`error while fetching allData: ${e}`);
+      });
   }, []);
   const addNewPerson = (e) => {
     e.preventDefault();
     console.log("newPerson: ", newPerson);
-    const alreadyExists = persons.some((item) => item.name == newPerson.name);
-    if (!alreadyExists) {
-      let pp = persons.concat(newPerson);
-      setPersons(pp);
-      setFilteredPersons(pp);
-      setNewPerson((state) => ({ name: "", number: "" }));
-    } else {
-      alert(`${newPerson.name} already exists`);
+    const alreadyExists = persons.findIndex(
+      (item) => item.name == newPerson.name
+    );
+    console.log("already exists: ", alreadyExists);
+    if (alreadyExists === -1) {
+      create(newPerson).then((response) => {
+        let pp = persons.concat(response);
+        setPersons(pp);
+        setFilteredPersons(pp);
+        setNewPerson((state) => ({ name: "", number: "" }));
+      });
+    } else if (
+      window.confirm(
+        `${newPerson.name} already exists, do you want to change his number?`
+      )
+    ) {
+      update(persons[alreadyExists].id, newPerson).then((response) => {
+        persons[alreadyExists] = response;
+        let pp = [...persons];
+        setPersons(pp);
+        setFilteredPersons(pp);
+        setNewPerson((state) => ({ name: "", number: "" }));
+      });
     }
   };
   const changeNewPerson = ({ lable, value }) => {
@@ -53,6 +72,18 @@ const App = () => {
     });
     console.log("newPerson22: ", newPerson);
   };
+  const onDelete = (id) => {
+    deletePhone(id)
+      .then((res) => {
+        console.log("deletePhone: ", res);
+        let pp = persons.filter((e) => e.id !== id);
+        setPersons(pp);
+        setFilteredPersons(pp);
+      })
+      .catch((e) => {
+        alert(`cannot delete id: ${id}`);
+      });
+  };
   return (
     <div>
       <FilterControll filterFunction={filterFunction} />
@@ -62,7 +93,7 @@ const App = () => {
         addNewPerson={addNewPerson}
         changeNewPerson={changeNewPerson}
       />
-      <PersonList persons={filteredPersons} />
+      <PersonList persons={filteredPersons} onClick={onDelete} />
     </div>
   );
 };
